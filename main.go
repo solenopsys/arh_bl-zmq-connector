@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"fmt"
 	"github.com/go-zeromq/zmq4"
+	"k8s.io/klog/v2"
 	"log"
 	"os"
 	"sync"
@@ -21,7 +21,7 @@ func router(url string) *zmq4.Socket {
 	}
 	//defer router.Close()
 
-	log.Printf("router created and bound")
+	klog.Info("router created and bound")
 	return &router
 }
 
@@ -35,7 +35,7 @@ func procFunc(router *zmq4.Socket, messageHandler MessageHandler, message []byte
 	var serviceId uint16 = binary.BigEndian.Uint16(header[4:6])
 	var functionId uint16 = binary.BigEndian.Uint16(header[6:8])
 
-	fmt.Printf("STREAM  %d SERVICE %d FUNCTION  %d", streamId, serviceId, functionId)
+	klog.Info("STREAM  %d SERVICE %d FUNCTION  %d", streamId, serviceId, functionId)
 
 	resultBody := messageHandler(body, streamId, serviceId, functionId)
 	ars := [][]byte{header, resultBody}
@@ -71,7 +71,7 @@ func StartServer(messageHandler MessageHandler) {
 	log.SetOutput(os.Stdout)
 	sock := router(os.Getenv("zmq.SocketUrl"))
 	go processMessageLoop(sock, messageHandler, wg)
-	println("START")
+	klog.Info("START SERVER")
 	wg.Wait()
-	println("END")
+	klog.Info("STOP SERVER")
 }
