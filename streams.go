@@ -10,14 +10,14 @@ import (
 )
 
 type SocketMassage struct {
-	body    []byte
-	address []byte
+	Body    []byte
+	Address []byte
 }
 
 type HsMassage struct {
-	state    uint8
-	function uint8
-	body     []byte
+	State    uint8
+	Function uint8
+	Body     []byte
 }
 
 type Streams interface {
@@ -30,7 +30,7 @@ type StreamConfig struct {
 	streamId uint32
 	created  time.Time
 	address  []byte
-	input    chan *HsMassage
+	Input    chan *HsMassage
 	output   chan *HsMassage
 }
 
@@ -45,13 +45,13 @@ func (sc StreamConfig) outputProcessing(ctx context.Context, socketOutput chan *
 			header := make([]byte, 6)
 
 			binary.BigEndian.PutUint32(header[0:4], sc.streamId)
-			header[4] = outputMessage.state
-			header[5] = outputMessage.function
+			header[4] = outputMessage.State
+			header[5] = outputMessage.Function
 
-			ars := [][]byte{header, outputMessage.body}
+			ars := [][]byte{header, outputMessage.Body}
 			result := bytes.Join(ars, []byte{})
 
-			socketOutput <- &SocketMassage{address: sc.address, body: result}
+			socketOutput <- &SocketMassage{Address: sc.address, Body: result}
 		}
 	}
 }
@@ -62,48 +62,49 @@ type StreamProcessor func(
 )
 
 type StreamsHolder struct {
-	streams        map[uint32]*StreamConfig
-	input          chan *SocketMassage
-	output         chan *SocketMassage
-	messageHandler StreamProcessor
-	meta           []byte
+	Streams        map[uint32]*StreamConfig
+	Input          chan *SocketMassage
+	Output         chan *SocketMassage
+	MessageHandler StreamProcessor
+	Meta           []byte
 }
 
 const FirstFrame = 15
 
-func (h *StreamsHolder) inputProcessing() {
+func (h *StreamsHolder) InputProcessing() {
 	for {
-		message := <-h.input
+		message := <-h.Input
 
-		var stream = binary.BigEndian.Uint32(message.body[:4])
-		var state = message.body[4]
-		var function = message.body[5]
+		var stream = binary.BigEndian.Uint32(message.Body[:4])
+		var state = message.Body[4]
+		var function = message.Body[5]
 		var body []byte
 		if state == FirstFrame {
-			user := binary.BigEndian.Uint16(message.body[6:8])
-			body = message.body[8:]
+			user := binary.BigEndian.Uint16(message.Body[6:8])
+			body = message.Body[8:]
 			streamConfig := &StreamConfig{
 				streamId: stream,
 				userId:   user,
 				created:  time.Now(),
-				address:  message.address,
-				input:    make(chan *HsMassage),
+				address:  message.Address,
+				Input:    make(chan *HsMassage),
 				output:   make(chan *HsMassage),
 			}
-			h.streams[stream] = streamConfig
+			h.Streams[stream] = streamConfig
 			klog.Info("NEW STREAM  %d STATE %d FUNCTION  %d USER %d", stream, state, function, user)
 			ctx := context.TODO()
-			go h.messageHandler(ctx, streamConfig)
-			go streamConfig.outputProcessing(ctx, h.output)
+			go h.MessageHandler(ctx, streamConfig)
+			go streamConfig.outputProcessing(ctx, h.Output)
 
 			select { //todo проверить это
 			case <-ctx.Done():
-				delete(h.streams, stream)
+				delete(h.Streams, stream)
 			}
 		} else {
-			body = message.body[6:]
+			body = message.Body[6:]
 		}
 
-		h.streams[stream].input <- &HsMassage{state: state, function: function, body: body} //todo проверить наличие стрима
+		//todo сюда не доходит
+		h.Streams[stream].Input <- &HsMassage{State: state, Function: function, Body: body} //todo проверить наличие стрима
 	}
 }

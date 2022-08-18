@@ -10,7 +10,6 @@ import (
 
 type HsSever struct {
 	socketUrl string
-	address   []byte
 	streams   Streams
 	socket    *zmq4.Socket
 	wg        sync.WaitGroup
@@ -34,7 +33,7 @@ func (h *HsSever) inputMessageLoop() { //todo добавить контекст
 			log.Fatal(err)
 			h.wg.Done()
 		}
-		input <- &SocketMassage{body: request.Frames[1], address: request.Frames[0]}
+		input <- &SocketMassage{Body: request.Frames[1], Address: request.Frames[0]}
 	}
 }
 
@@ -42,10 +41,10 @@ func (h *HsSever) outputMessageLoop() { //todo добавить контекст
 	output := h.streams.output()
 	for {
 		message := <-output
-		msg := zmq4.NewMsgFrom(message.address, message.body)
+		msg := zmq4.NewMsgFrom(message.Address, message.Body)
 		err := (*h.socket).Send(msg)
 		if err != nil {
-			log.Fatalf("router failed to send message to %q: %v", message, message.address)
+			log.Fatalf("router failed to send message to %q: %v", message, message.Address)
 		}
 		if err != nil {
 			log.Fatal(err)
