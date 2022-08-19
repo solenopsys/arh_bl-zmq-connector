@@ -8,16 +8,30 @@ import (
 	"time"
 )
 
+func timeout() {
+	time.Sleep(100 * time.Millisecond)
+}
+
 var _ = Describe("HsServer", func() {
 
 	var holder *zmq_connector.StreamsHolder
-	var lastMessage *zmq_connector.HsMassage
+	var lastMessageInput *zmq_connector.HsMassage
+	var lastMessageOutput *zmq_connector.HsMassage
 
 	var mockHandler = func(stream *zmq_connector.StreamConfig, cansel context.CancelFunc) {
 
 		go func() {
 			for {
-				lastMessage = <-stream.Input
+				lastMessageInput = <-stream.Input
+
+				//stream.Output =<-
+			}
+
+		}()
+
+		go func() {
+			for {
+				lastMessageOutput = <-stream.Output
 
 				//stream.Output =<-
 			}
@@ -45,17 +59,23 @@ var _ = Describe("HsServer", func() {
 					Body:    []byte{0, 0, 0, 34, 15, 4, 0, 10, 32, 34},
 					Address: []byte{10, 20},
 				}
-				time.Sleep(100 * time.Millisecond)
-				Expect(lastMessage).To(Equal(&zmq_connector.HsMassage{15, 4, []byte{32, 34}}))
+				timeout()
+				Expect(lastMessageInput).To(Equal(&zmq_connector.HsMassage{15, 4, []byte{32, 34}}))
 				holder.Input <- &zmq_connector.SocketMassage{
 					Body:    []byte{0, 0, 0, 34, 0, 4, 0, 10, 32, 34},
 					Address: []byte{10, 20},
 				}
-				time.Sleep(100 * time.Millisecond)
-				Expect(lastMessage).To(Equal(&zmq_connector.HsMassage{0, 4, []byte{0, 10, 32, 34}}))
-
+				timeout()
+				Expect(lastMessageInput).To(Equal(&zmq_connector.HsMassage{0, 4, []byte{0, 10, 32, 34}}))
 			})
-
+			It("should be error", func() {
+				holder.Input <- &zmq_connector.SocketMassage{
+					Body:    []byte{0, 0, 0, 34, 0, 4, 0, 10, 32, 34},
+					Address: []byte{10, 20},
+				}
+				timeout()
+				Expect(lastMessageOutput).To(Equal(&zmq_connector.HsMassage{13, 4, []byte("StreamNotOpen")}))
+			})
 		})
 	})
 

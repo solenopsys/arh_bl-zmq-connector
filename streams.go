@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+type ErrorCodes uint8
+
+const (
+	EndpointStreamNotFound ErrorCodes = iota
+)
+
+func (r ErrorCodes) String() string {
+	return [...]string{
+		"EndpointStreamNotFound",
+	}[r]
+}
+
 type SocketMassage struct {
 	Body    []byte
 	Address []byte
@@ -79,9 +91,18 @@ func (h *StreamsHolder) output() chan *SocketMassage {
 }
 
 const FirstFrame = 15
+const StreamError = 13
 
 func (h *StreamsHolder) init() {
 	go h.InputProcessing(nil)
+}
+func (h *StreamsHolder) ErrorResponse(stream uint32, function uint8, Address []byte, errorCode ErrorCodes) {
+	header := make([]byte, 6)
+	binary.BigEndian.PutUint32(header[0:4], stream)
+	header[4] = StreamError
+	header[5] = function
+	body := append(header, errorCode.String()...)
+	h.Output <- &SocketMassage{body, Address}
 }
 
 func (h *StreamsHolder) InputProcessing(ctx context.Context) {
@@ -117,7 +138,12 @@ func (h *StreamsHolder) InputProcessing(ctx context.Context) {
 				body = message.Body[6:]
 			}
 
-			h.Streams[stream].Input <- &HsMassage{State: state, Function: function, Body: body} //todo проверить наличие стрима
+			if streamConf, has := h.Streams[stream]; has {
+				streamConf.Input <- &HsMassage{State: state, Function: function, Body: body} //todo проверить наличие стрима
+			} else {
+				h.ErrorResponse(stream, function, message.Address, EndpointStreamNotFound)
+			}
+
 		case <-ctx.Done():
 			break
 		}
