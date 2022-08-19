@@ -9,8 +9,8 @@ import (
 )
 
 type HsSever struct {
-	socketUrl string
-	streams   Streams
+	SocketUrl string
+	Streams   Streams
 	socket    *zmq4.Socket
 	wg        sync.WaitGroup
 }
@@ -19,14 +19,15 @@ func (h *HsSever) StartServer() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	h.startListen()
-	go h.inputMessageLoop()
+
 	go h.outputMessageLoop()
+	go h.Streams.init()
 	wg.Wait()
 	klog.Info("STOP SERVER")
 }
 
 func (h *HsSever) inputMessageLoop() { //todo добавить контекст
-	input := h.streams.input()
+	input := h.Streams.input()
 	for {
 		request, err := (*h.socket).Recv()
 		if err != nil {
@@ -38,7 +39,7 @@ func (h *HsSever) inputMessageLoop() { //todo добавить контекст
 }
 
 func (h *HsSever) outputMessageLoop() { //todo добавить контекст
-	output := h.streams.output()
+	output := h.Streams.output()
 	for {
 		message := <-output
 		msg := zmq4.NewMsgFrom(message.Address, message.Body)
@@ -53,13 +54,14 @@ func (h *HsSever) outputMessageLoop() { //todo добавить контекст
 }
 
 func (h *HsSever) startListen() {
-	klog.Info("START SERVER URL ", h.socketUrl)
+	klog.Info("START SERVER URL ", h.SocketUrl)
 	socket := zmq4.NewRouter(context.Background(), zmq4.WithID(zmq4.SocketIdentity("server")))
-	err := socket.Listen(h.socketUrl)
+	err := socket.Listen(h.SocketUrl)
 	if err != nil {
-		klog.Errorf("could not listen %q: %v", h.socketUrl, err)
+		klog.Errorf("could not listen %q: %v", h.SocketUrl, err)
 	} else {
 		klog.Info("router created and bound")
 		h.socket = &socket
+		go h.inputMessageLoop()
 	}
 }
