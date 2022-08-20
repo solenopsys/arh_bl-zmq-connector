@@ -9,18 +9,6 @@ import (
 	"time"
 )
 
-type ErrorCodes uint8
-
-const (
-	EndpointStreamNotFound ErrorCodes = iota
-)
-
-func (r ErrorCodes) String() string {
-	return [...]string{
-		"EndpointStreamNotFound",
-	}[r]
-}
-
 type SocketMassage struct {
 	Body    []byte
 	Address []byte
@@ -71,7 +59,7 @@ func (sc StreamConfig) outputProcessing(ctx context.Context, socketOutput chan *
 
 type StreamProcessor func(
 	stream *StreamConfig,
-	cancelFunc context.CancelFunc,
+	cancel context.CancelFunc,
 )
 
 type StreamsHolder struct {
@@ -90,11 +78,9 @@ func (h *StreamsHolder) output() chan *SocketMassage {
 	return h.Output
 }
 
-const FirstFrame = 15
-const StreamError = 13
-
 func (h *StreamsHolder) init() {
-	go h.InputProcessing(nil)
+	ctx := context.Background()
+	go h.InputProcessing(ctx)
 }
 func (h *StreamsHolder) ErrorResponse(stream uint32, function uint8, Address []byte, errorCode ErrorCodes) {
 	header := make([]byte, 6)
