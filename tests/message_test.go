@@ -4,7 +4,7 @@ import (
 	"context"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"solenopsys.org/zmq_connector"
+	"github.com/solenopsys/sc-bl-zmq-connector"
 	"time"
 )
 
