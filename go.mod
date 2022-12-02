@@ -1,4 +1,4 @@
-module solenopsys.org/zmq_connector
+module github.com/solenopsys/sc-bl-zmq-connector
 
 go 1.17
 
